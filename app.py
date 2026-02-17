@@ -2,8 +2,9 @@ import streamlit as st
 import statistics
 import datetime
 import pandas as pd
+import numpy as np
 
-
+    
 
 st.header("Статистический анализ датасета")
 
@@ -20,20 +21,40 @@ if uploaded_file is not None:
         st.dataframe(df)
         #выбор столбца и рассчитываемой статистики
         select_column = st.selectbox('Выберите столбец:',(df.columns))
-        select_statistic = st.selectbox('Выберите статистику:',('общий анализ', 'среднее значение', 'медиана', 'среднеквадратичное отклонение'))
-        #рассчеты и графики спрятаны в классах analyze и graphics
-        #не есть хорошо создавать объекты классов, работающих с разными типами данных, так как это влечет за собой разброс данных в памяти
-        #но нам это нужно для разделения функций расчета статистик и отрисовки графиков
-        #потому что удобно потом использовать код повторно
-        # а так как у классов нет полей, а есть только методы, которые работают с переданными данными
-        #то недостатки устраняются сами собой
+        select_statistic = st.selectbox('Выберите статистику:',('среднее значение', 'медиана', 'среднеквадратичное отклонение'))
+        df_tmp = df.astype(str)
+        
         if st.button("Рассчитать"):
-            pass
+            if select_statistic == 'среднее значение':
+                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column].str.replace(',', '.'), errors = 'coerce')
+                    result = round(df_tmp[select_column].mean(),2)
+                    if np.isnan(result) == False:
+                        st.write(f'Среднее значение: {round(df_tmp[select_column].mean(),2)}')
+                    else:
+                        st.write('Выбран не числовой столбец')
+            if select_statistic == 'медиана':
+                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column].str.replace(',', '.'), errors = 'coerce')
+                    result = round(df_tmp[select_column].mean(),2)
+                    if np.isnan(result) == False:
+                        st.write(f'Медиана: {round(df_tmp[select_column].median(),2)}')
+                    else:
+                        st.write('Выбран не числовой столбец')
+            if select_statistic == 'среднеквадратичное отклонение':
+                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column].str.replace(',', '.'), errors = 'coerce')
+                    result = round(df_tmp[select_column].mean(),2)
+                    if np.isnan(result) == False:
+                        st.write(f'Среднеквадратичное отклонение: {round(df_tmp[select_column].std(),2)}')
+                    else:
+                        st.write('Выбран не числовой столбец')
+    
+
+            
+                
 
             #сюда тянем методы из класса analyze
 
         selected_columns = st.multiselect('Выберите колонки для графика:', df.columns.tolist())
-        select_graphics = st.selectbox('Выберите график:',('Линейный', 'Диаграмма рассеяния', 'Круговая диаграмма', 'Столбцовая диаграмма'))
+        select_graphics = st.selectbox('Выберите график:',('Линейный', 'Диаграмма рассеяния'))
 
         if st.button("Построить график"):
 
