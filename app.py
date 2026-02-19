@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import io
+import csv
 
 
 #функция отрисовки гистограммы и код для отправки графика на скачивание пользователю
@@ -36,7 +37,71 @@ def single_field_hist(data, name, color):
         file_name=name+ ".png",
         mime="image/png"
     )
+#функция отрисовки линейного графика и код для отправки графика на скачивание пользователю
+#Аргументы:
+#data - название столбцов выбранных пользователем
+#df - датафрейм
+def double_field_line(data, df):
+    if len(data) < 2:
+        st.write('Выберите еще один столбец')
+        return
+    
+    x = df[data[0]]
+    y = df[data[1]]
+    
+    fig, ax = plt.subplots(figsize=(25,10))
+    ax.set_title('Зависимость данных')
+    ax.set_xlabel(data[0])
+    ax.set_ylabel(data[1])
+    ax.plot(x, y, '-bo', linewidth=2, markersize=6, markerfacecolor='red')
+    ax.legend([data[0]])
+    ax.grid()
 
+    st.pyplot(fig)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+
+    st.download_button(
+        label="Скачать график как PNG",
+        data=buf,
+        file_name="line_distribution.png",
+        mime="image/png"
+    )
+
+#функция отрисовки рассеяния точек и код для отправки графика на скачивание пользователю
+#Аргументы:
+#data - название столбцов выбранных пользователем
+#df - датафрейм
+def double_field_scatter(data, df):
+    if len(data) < 2:
+        st.write('Выберите еще один столбец')
+        return
+    
+    x = df[data[0]]
+    y = df[data[1]]
+    
+    fig, ax = plt.subplots(figsize=(25,10))
+    ax.set_title('Зависимость данных')
+    ax.set_xlabel(data[0])
+    ax.set_ylabel(data[1])
+    ax.scatter(x, y, s=60, c='blue', edgecolors='black', alpha=0.7)
+    ax.legend([data[0]])
+    ax.grid()
+
+    st.pyplot(fig)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+
+    st.download_button(
+        label="Скачать график как PNG",
+        data=buf,
+        file_name="scatter_distribution.png",
+        mime="image/png"
+    )
 
 
 st.header("Статистический анализ датасета")
@@ -90,19 +155,36 @@ if uploaded_file is not None:
     
 
             
-                
+        #код для отрисовки графиков пар столбцов
+        #пользователь выбирает два столбца, передаем в функции отрисовки и экспорта
+        #!!!очень медленно работает, нужно ускорить
         st.header("Графики для пар столбцов")
-        selected_columns = st.multiselect('Выберите колонки для графика:', df.columns.tolist())
+        selected_columns = st.multiselect('Выберите колонки для графика:', df.columns.tolist(), max_selections=2)
         select_graphics = st.selectbox('Выберите график:',('Линейный', 'Диаграмма рассеяния'))
 
         if st.button("Построить график"):
+            if select_graphics == 'Линейный':
+                double_field_line(selected_columns, df_tmp)
+            if select_graphics == 'Диаграмма рассеяния':
+                double_field_scatter(selected_columns, df_tmp)
+        
 
-        #здесь отрисовываем графики после активируем кнопку экспорта
-        #то есть тянем методы из класса graphics
-            st.button("Экспортировать график")
 
+    #отлавливаем ошибки кодировки
     except UnicodeDecodeError:
         st.write('Некорректная кодировка')
+    #отлавливаем ошибки - битый файл и его не распарсить
+    except csv.Error:
+        st.write('Файл битый - ошибка парсинга')
+    #отлавливаем ошибки - файл битый и не удалось определить разделитель
+    except pd.errors.ParserError:
+        st.write('Файл битый - не удалось определить разделитель')
+    #отлавливаем все остальные ошибки
+    except Exception as e:
+        st.error(f"Произошла неизвестная ошибка: {e}")
+        
+        
+        
 
 
 
