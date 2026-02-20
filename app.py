@@ -102,7 +102,35 @@ def double_field_scatter(data, df):
         file_name="scatter_distribution.png",
         mime="image/png"
     )
+#функция для парсинга колонок в форматы:
+#числа
+#даты
+#если не числа и не даты - то строки
+def parse_df_cols(columns, df):
+    for col in columns:
+        try:
+            num = pd.to_numeric(df[col].str.replace(',', '.'))
+            if len(num) > 0:
+                df[col] = pd.to_numeric(df[col].str.replace(',', '.'), errors = 'coerce')          
+                continue
+        except:
+            pass
 
+        try:
+            dat = pd.to_datetime(df[col])
+            if len(dat) > 0:
+                df[col] = pd.to_datetime(df[col], errors = 'coerce')
+                continue
+        except:
+            pass
+    return df
+#функция для фильтрации столбцов - выбирает только числовые метрики
+def filter_cols(columns, df):
+    res = []
+    for col in columns:
+        if (str(df[col].dtype)[0:3] == 'Flo' or str(df[col].dtype)[0:3] == 'Int') and col != 'Unnamed: 0': # дополнительно проверяем чтобы не попал столбец 0(индекс)
+            res.append(col)
+    return res
 
 st.header("Статистический анализ датасета")
 
@@ -120,38 +148,37 @@ if uploaded_file is not None:
         st.dataframe(df)
         #выбор столбца и рассчитываемой статистики
         st.header("Расчет базовых статистик")
-        select_column = st.selectbox('Выберите столбец:',(df.columns))
+        df_tmp = df.astype('string')
+        #заполняем значения nan строкой '0' во избежание ошибок при распознавании столбца и преобразовании
+        df_tmp = df_tmp.fillna('0')
+        df_tmp = parse_df_cols(df_tmp.columns, df_tmp)
+        cols = filter_cols(df_tmp.columns, df_tmp)
+        select_column = st.selectbox('Выберите столбец:',(cols))
         select_statistic = st.selectbox('Выберите статистику:',('среднее значение', 'медиана', 'среднеквадратичное отклонение'))
-        df_tmp = df.astype(str)
-        #при нажатии на кнопку "Рассчитать" все данные заранее приведены к строке
-        #пробуем перевести в числовые данные
-        #если получается - значит считаем статистики и строим распределение
-        #если нет - выдаем ошибку и даем пользователю поменять поле
+
+        st.write(df_tmp.dtypes)
+        #при нажатии на кнопку "Рассчитать" все данные заранее приведены к нужным типам
+        #а также данные в выпадающем списке только числовые
+        #делаем расчет
         if st.button("Рассчитать"):
             if select_statistic == 'среднее значение':
-                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column].str.replace(',', '.'), errors = 'coerce')
+                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column], errors = 'coerce')
                     result = round(df_tmp[select_column].mean(),2)
-                    if np.isnan(result) == False:
-                        st.write(f'Среднее значение: {round(df_tmp[select_column].mean(),2)}')
-                        single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
-                    else:
-                        st.write('Выбран не числовой столбец')
+                    st.write(f'Среднее значение: {round(df_tmp[select_column].mean(),2)}')
+                    single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
+
             if select_statistic == 'медиана':
-                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column].str.replace(',', '.'), errors = 'coerce')
+                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column], errors = 'coerce')
                     result = round(df_tmp[select_column].mean(),2)
-                    if np.isnan(result) == False:
-                        st.write(f'Медиана: {round(df_tmp[select_column].median(),2)}')
-                        single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
-                    else:
-                        st.write('Выбран не числовой столбец')
+                    st.write(f'Медиана: {round(df_tmp[select_column].median(),2)}')
+                    single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
+
             if select_statistic == 'среднеквадратичное отклонение':
-                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column].str.replace(',', '.'), errors = 'coerce')
+                    df_tmp[select_column] = pd.to_numeric(df_tmp[select_column], errors = 'coerce')
                     result = round(df_tmp[select_column].mean(),2)
-                    if np.isnan(result) == False:
-                        st.write(f'Среднеквадратичное отклонение: {round(df_tmp[select_column].std(),2)}')
-                        single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
-                    else:
-                        st.write('Выбран не числовой столбец')
+                    st.write(f'Среднеквадратичное отклонение: {round(df_tmp[select_column].std(),2)}')
+                    single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
+
     
 
             
@@ -159,7 +186,7 @@ if uploaded_file is not None:
         #пользователь выбирает два столбца, передаем в функции отрисовки и экспорта
         #!!!очень медленно работает, нужно ускорить
         st.header("Графики для пар столбцов")
-        selected_columns = st.multiselect('Выберите колонки для графика:', df.columns.tolist(), max_selections=2)
+        selected_columns = st.multiselect('Выберите колонки для графика:', df_tmp.columns.tolist(), max_selections=2)
         select_graphics = st.selectbox('Выберите график:',('Линейный', 'Диаграмма рассеяния'))
 
         if st.button("Построить график"):
