@@ -159,14 +159,21 @@ if uploaded_file is not None:
         st.dataframe(df)
 
         #инициализация переменной состояния для сохранения данных перед отрисовкой
+        #данные для графика по одному столбцу
         if 'data' not in st.session_state:
             st.session_state.data = ''
+        #флаг, что нажата кнопка для отрисовки графика по 1 столбцу - нужно при перерисовке
         if  'single_press' not in st.session_state:
             st.session_state.single_press = False
+        #выбранный столбец графика по одному столбцу - нужно при перерисовке
         if  'select_column' not in st.session_state:
             st.session_state.select_column = ''
-        if  'double_press' not in st.session_state:
-            st.session_state.double_press = False
+        #флаг, что нажата кнопка 
+        #if  'double_press' not in st.session_state:
+         #   st.session_state.double_press = False
+        #список столбцов дл отрисовки графика по нескольким столбцам 
+        if "selected_columns" not in st.session_state:
+            st.session_state.selected_columns = []
 
 
             
@@ -252,7 +259,7 @@ if uploaded_file is not None:
                 if select_graphics == 'Диаграмма рассеяния':
                     download_double(double_field_scatter(st.session_state.selected_columns, df_tmp))
         else:
-            st.error('Выберите два столбца(если выбирали, выберите заново)')
+            st.info('Выберите два столбца')
         
 
 
