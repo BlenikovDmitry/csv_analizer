@@ -8,6 +8,35 @@ import io
 import csv
 
 
+#функция загрузки графика по одному полю
+#просто отдает файл на выгрузку при нажатии на кнопку
+def download_single(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+
+    st.download_button(
+        label="Скачать график как PNG",
+        data=buf,
+        file_name='distribution.png',
+        mime="image/png",
+        #on_click=remove_plot_after_download_single
+    )
+
+#функция загрузки графика по двум полям
+#просто отдает файл на выгрузку при нажатии на кнопку
+def download_double(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+
+    st.download_button(
+        label="Скачать график как PNG",
+        data=buf,
+        file_name='dependence.png',
+        mime="image/png",
+    )
+
 #функция отрисовки гистограммы и код для отправки графика на скачивание пользователю
 #Аргументы:
 #data - отрисовываемые данные
@@ -27,16 +56,8 @@ def single_field_hist(data, name, color):
 
     st.pyplot(fig)
 
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png")
-    buf.seek(0)
+    return fig
 
-    st.download_button(
-        label="Скачать график как PNG",
-        data=buf,
-        file_name=name+ ".png",
-        mime="image/png"
-    )
 #функция отрисовки линейного графика и код для отправки графика на скачивание пользователю
 #Аргументы:
 #data - название столбцов выбранных пользователем
@@ -59,17 +80,9 @@ def double_field_line(data, df):
 
     st.pyplot(fig)
 
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png")
-    buf.seek(0)
+    return fig
 
-    st.download_button(
-        label="Скачать график как PNG",
-        data=buf,
-        file_name="line_distribution.png",
-        mime="image/png"
-    )
-
+    
 #функция отрисовки рассеяния точек и код для отправки графика на скачивание пользователю
 #Аргументы:
 #data - название столбцов выбранных пользователем
@@ -96,12 +109,9 @@ def double_field_scatter(data, df):
     fig.savefig(buf, format="png")
     buf.seek(0)
 
-    st.download_button(
-        label="Скачать график как PNG",
-        data=buf,
-        file_name="scatter_distribution.png",
-        mime="image/png"
-    )
+    return fig
+
+
 #функция для парсинга колонок в форматы:
 #числа
 #даты
@@ -144,8 +154,22 @@ if uploaded_file is not None:
     #если получается - едем дальше
     #если нет - выдаем исключение UnicodeDecodeError и позволяем пользователю изменить выбор
     try:
+                        
         df =  pd.read_csv(uploaded_file, sep=None, engine='python', encoding=user_enc)
         st.dataframe(df)
+
+        #инициализация переменной состояния для сохранения данных перед отрисовкой
+        if 'data' not in st.session_state:
+            st.session_state.data = ''
+        if  'single_press' not in st.session_state:
+            st.session_state.single_press = False
+        if  'select_column' not in st.session_state:
+            st.session_state.select_column = ''
+        if  'double_press' not in st.session_state:
+            st.session_state.double_press = False
+
+
+            
         #выбор столбца и рассчитываемой статистики
         st.header("Расчет базовых статистик")
         df_tmp = df.astype('string')
@@ -153,47 +177,82 @@ if uploaded_file is not None:
         df_tmp = df_tmp.fillna('0')
         df_tmp = parse_df_cols(df_tmp.columns, df_tmp)
         cols = filter_cols(df_tmp.columns, df_tmp)
+        st.session_state.cols = cols
         select_column = st.selectbox('Выберите столбец:',(cols))
         select_statistic = st.selectbox('Выберите статистику:',('среднее значение', 'медиана', 'среднеквадратичное отклонение'))
+        
+        #если уже нажималась кнопка - перерисовываем график при очередном rerun
+        #позволяет при изменении столбца/метрики перерировать график/значение
+        if st.session_state.single_press == True:
+            if select_statistic == 'среднее значение':
+                st.write(f'Среднее значение: {round(df_tmp[select_column].mean(),2)}')
+                st.session_state.data = df_tmp[select_column]
+                st.session_state.select_column = select_column
+                download_single(single_field_hist(st.session_state.data, 'Распределение столбца ' + st.session_state.select_column, 'blue'))
+            if select_statistic == 'медиана':
+                st.write(f'Медиана: {round(df_tmp[select_column].median(),2)}')
+                st.session_state.data = df_tmp[select_column]
+                st.session_state.select_column = select_column
+                download_single(single_field_hist(st.session_state.data, 'Распределение столбца ' + st.session_state.select_column, 'blue'))
+            if select_statistic == 'среднеквадратичное отклонение':
+                st.write(f'Среднеквадратичное отклонение: {round(df_tmp[select_column].std(),2)}')
+                st.session_state.data = df_tmp[select_column]
+                st.session_state.select_column = select_column
+                download_single(single_field_hist(st.session_state.data, 'Распределение столбца ' + st.session_state.select_column, 'blue'))
+                
+            
+                
 
-        st.write(df_tmp.dtypes)
-        #при нажатии на кнопку "Рассчитать" все данные заранее приведены к нужным типам
+                
+                    
+        #при нажатии на кнопку "Анализ" все данные заранее приведены к нужным типам
         #а также данные в выпадающем списке только числовые
-        #делаем расчет
-        if st.button("Рассчитать"):
+        #делаем расчет - графики не отрисовываем - они будут рисоваться при rerun - а тут только задаем переменные сессии
+        if st.button("Анализ"):
+            
             if select_statistic == 'среднее значение':
                     df_tmp[select_column] = pd.to_numeric(df_tmp[select_column], errors = 'coerce')
-                    result = round(df_tmp[select_column].mean(),2)
                     st.write(f'Среднее значение: {round(df_tmp[select_column].mean(),2)}')
-                    single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
+                    st.session_state.data = df_tmp[select_column]
+                    st.session_state.single_press = True
+                    st.session_state.select_column = select_column
+                    st.rerun()
 
             if select_statistic == 'медиана':
                     df_tmp[select_column] = pd.to_numeric(df_tmp[select_column], errors = 'coerce')
-                    result = round(df_tmp[select_column].mean(),2)
                     st.write(f'Медиана: {round(df_tmp[select_column].median(),2)}')
-                    single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
+                    st.session_state.data = df_tmp[select_column]
+                    st.session_state.single_press = True
+                    st.session_state.select_column = select_column
+                    st.rerun()
 
             if select_statistic == 'среднеквадратичное отклонение':
                     df_tmp[select_column] = pd.to_numeric(df_tmp[select_column], errors = 'coerce')
                     result = round(df_tmp[select_column].mean(),2)
                     st.write(f'Среднеквадратичное отклонение: {round(df_tmp[select_column].std(),2)}')
-                    single_field_hist(df_tmp[select_column], 'Распределение столбца ' + select_column, 'blue')
+                    st.session_state.data = df_tmp[select_column]
+                    st.session_state.single_press = True
+                    st.session_state.select_column = select_column
+                    st.rerun()
 
-    
-
+                        
             
         #код для отрисовки графиков пар столбцов
         #пользователь выбирает два столбца, передаем в функции отрисовки и экспорта
-        #!!!очень медленно работает, нужно ускорить
+        #есть проверка на число столбцов максимальное и минимальное
+        #тут нет хитрой перерисовки, при нажатии на кнопку скачивания график выгружается и пропадает
         st.header("Графики для пар столбцов")
-        selected_columns = st.multiselect('Выберите колонки для графика:', df_tmp.columns.tolist(), max_selections=2)
+        selected_columns = st.multiselect('Выберите колонки для графика:', cols, max_selections=2, key ='selected_columns')
         select_graphics = st.selectbox('Выберите график:',('Линейный', 'Диаграмма рассеяния'))
 
-        if st.button("Построить график"):
-            if select_graphics == 'Линейный':
-                double_field_line(selected_columns, df_tmp)
-            if select_graphics == 'Диаграмма рассеяния':
-                double_field_scatter(selected_columns, df_tmp)
+        if len(st.session_state.selected_columns) == 2:
+            if st.button("Построить график"):
+                if select_graphics == 'Линейный':
+                    download_double(double_field_line(st.session_state.selected_columns, df_tmp))
+                if select_graphics == 'Диаграмма рассеяния':
+                    download_double(double_field_scatter(st.session_state.selected_columns, df_tmp))
+        else:
+            st.error('Выберите два столбца(если выбирали, выберите заново)')
         
 
 
