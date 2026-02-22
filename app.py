@@ -1,8 +1,5 @@
 import streamlit as st
-import statistics
-import datetime
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import io
 import csv
@@ -125,7 +122,7 @@ def parse_df_cols(columns, df):
                 continue
         except:
             pass
-
+#непонятно только какое может быть особое внимание к парсингу дат, если формат может быть разным и мы отдаем его на откуп парсеру
         try:
             dat = pd.to_datetime(df[col])
             if len(dat) > 0:
